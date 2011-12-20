@@ -34,9 +34,6 @@
 
 
 
-//================================
-// STPointerLayerDelegate interface
-//================================
 @interface PlexSliderLayerDelegate : NSObject {}
 
 - (void)drawLayer:(CALayer *)layer inContext:(CGContextRef)context;
