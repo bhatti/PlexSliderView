@@ -4,7 +4,7 @@
 
 const float DISTANCE_BETWEEN_ITEMS = 100.0;
 const int TEXT_LAYER_WIDTH = 80;
-const float FONT_SIZE = 14.0f;
+const float FONT_SIZE = 12.0f;
 const float POINTER_WIDTH = 10.0f;
 const float POINTER_HEIGHT = 7.0f;
 
@@ -61,14 +61,14 @@ const float POINTER_HEIGHT = 7.0f;
 @property (nonatomic, retain) UIView *scrollViewMarkerContainerView;
 @property (nonatomic, retain) NSMutableArray *scrollViewMarkerLayerArray;
 @property (nonatomic, retain) CALayer *pointerLayer;
-
+- (void)callDelegateWithNew:(CGFloat)offset;
 - (void)setupMarkers;
 - (void)snapToMarkerAnimated:(BOOL)animated;
-- (void)callDelegateWithNew:(CGFloat)offset;
 @end;
 
 
 @implementation PlexSliderView
+@synthesize singleItemMode;
 @synthesize distanceBetweenLabels;
 @synthesize labelWidth;
 @synthesize delegate;
@@ -94,15 +94,15 @@ const float POINTER_HEIGHT = 7.0f;
         // Ensures that the corners are transparent
         self.backgroundColor = [UIColor clearColor];
         
-        self.scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, self.frame.size.width, self.frame.size.height)];
+        scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, self.frame.size.width, self.frame.size.height)];
         self.scrollView.backgroundColor = [UIColor colorWithRed:0.95 green:0.95 blue:0.95 alpha:1.0];
         self.scrollView.showsVerticalScrollIndicator = NO;
         self.scrollView.showsHorizontalScrollIndicator = NO;        
         self.scrollView.pagingEnabled = NO;
         self.scrollView.delegate = self;
         
-        self.scrollViewMarkerContainerView = [[UIView alloc] init];
-        self.scrollViewMarkerLayerArray = [[NSMutableArray alloc] init];
+        scrollViewMarkerContainerView = [[UIView alloc] init];
+        scrollViewMarkerLayerArray = [[NSMutableArray alloc] init];
         
         
         fontSize = FONT_SIZE;
@@ -113,11 +113,11 @@ const float POINTER_HEIGHT = 7.0f;
         
         CAGradientLayer *dropshadowLayer = [CAGradientLayer layer];
         dropshadowLayer.contentsScale = scale;
-        dropshadowLayer.cornerRadius = 8.0f;
+        dropshadowLayer.cornerRadius = 6.0f;
         dropshadowLayer.startPoint = CGPointMake(0.0f, 0.0f);
         dropshadowLayer.endPoint = CGPointMake(0.0f, 1.0f);
         dropshadowLayer.opacity = 1.0;
-        dropshadowLayer.frame = CGRectMake(1.0f, 1.0f, self.frame.size.width - 2.0, self.frame.size.height - 2.0);
+        dropshadowLayer.frame = CGRectMake(0.0f, 1.0f, self.frame.size.width - 0.0, self.frame.size.height - 1.0);
         dropshadowLayer.locations = [NSArray arrayWithObjects:
                                      [NSNumber numberWithFloat:0.0f],
                                      [NSNumber numberWithFloat:0.05f],
@@ -137,11 +137,11 @@ const float POINTER_HEIGHT = 7.0f;
         
         CAGradientLayer *gradientLayer = [CAGradientLayer layer];
         gradientLayer.contentsScale = scale;
-        gradientLayer.cornerRadius = 8.0f;
+        gradientLayer.cornerRadius = 6.0f;
         gradientLayer.startPoint = CGPointMake(0.0f, 0.0f);
         gradientLayer.endPoint = CGPointMake(1.0f, 0.0f);
         gradientLayer.opacity = 1.0;
-        gradientLayer.frame = CGRectMake(1.0f, 1.0f, self.frame.size.width - 2.0, self.frame.size.height - 2.0);
+        gradientLayer.frame = CGRectMake(0.0f, 0.0f, self.frame.size.width - 0.0, self.frame.size.height - 0.0);
         gradientLayer.locations = [NSArray arrayWithObjects:
                                    [NSNumber numberWithFloat:0.0f],
                                    [NSNumber numberWithFloat:0.05f],
@@ -166,12 +166,13 @@ const float POINTER_HEIGHT = 7.0f;
         self.pointerLayer.opacity = 1.0;
         self.pointerLayer.contentsScale = scale;
         self.pointerLayer.frame = CGRectMake(0.0f, 0.0f, self.frame.size.width, self.frame.size.height);
-        self.pointerLayer.delegate = [[PlexSliderLayerDelegate alloc] init];
+        pointerLayer.delegate = [[PlexSliderLayerDelegate alloc] init];
         [self.layer insertSublayer:self.pointerLayer above:gradientLayer];
         [self.pointerLayer setNeedsDisplay];
         self.scrollView.layer.cornerRadius = 8.0f;
         self.scrollView.layer.borderWidth = 1.0f;
         self.scrollView.layer.borderColor = borderColor.CGColor ? borderColor.CGColor : [UIColor grayColor].CGColor;
+//        self.scrollView.layer.borderColor = [UIColor clearColor];
         
         [self setupMarkers];
     }
@@ -229,27 +230,32 @@ const float POINTER_HEIGHT = 7.0f;
 
 - (void)setupMarkers {
     [self removeAllMarkers];    
-    // Calculate the new size of the content
-    float leftPadding = self.frame.size.width / 2;
-    float rightPadding = leftPadding/2;
     int steps = [delegate numberOfRowsForSlider:self];
-    
+
+    // Calculate the new size of the content
+    float leftPadding = singleItemMode ? self.frame.size.width / 2.5 : self.frame.size.width / 2;
+    float rightPadding = singleItemMode ? self.frame.size.width / 3 : leftPadding/2;
+    if (singleItemMode) {
+        labelWidth = self.frame.size.width;
+        distanceBetweenLabels = self.frame.size.width;
+    }
     float contentWidth = leftPadding + (steps * distanceBetweenLabels) + rightPadding;
     self.scrollView.contentSize = CGSizeMake(contentWidth, self.frame.size.height);
     
     // Set the size of the marker container view
     [self.scrollViewMarkerContainerView setFrame:CGRectMake(0.0f, 0.0f, contentWidth, self.frame.size.height)];
-    
+
+
     // Configure the new markers
     for (int i = 0; i < steps; i++) {
         CATextLayer *textLayer = [CATextLayer layer];
         textLayer.contentsScale = scale;
-        textLayer.frame = CGRectIntegral(CGRectMake(leftPadding + i*distanceBetweenLabels, self.frame.size.height / 2 - fontSize / 2 + 1, labelWidth, 40));
+        textLayer.frame = CGRectIntegral(CGRectMake(leftPadding + i*distanceBetweenLabels, self.frame.size.height / 2 - fontSize / 2 + 1, labelWidth, 30));
         //NSLog(@"Adding text %d for %f, total steps %d", i, textLayer.frame.origin.x, steps);
         textLayer.foregroundColor = [UIColor blackColor].CGColor;
         textLayer.alignmentMode = kCAAlignmentCenter;
         textLayer.fontSize = fontSize;
-        
+        textLayer.font = [UIFont fontWithName:@"Helvetica-Bold" size:fontSize];  
         textLayer.string = [delegate slider:self titleForRow:i];
         [self.scrollViewMarkerLayerArray addObject:textLayer];
         [self.scrollViewMarkerContainerView.layer addSublayer:textLayer];
@@ -260,6 +266,20 @@ const float POINTER_HEIGHT = 7.0f;
 
 - (void)reloadAllData {
     [self setupMarkers];
+}
+
+- (void) resetPosition {
+    CGFloat itemWidth = distanceBetweenLabels;
+    CGFloat xValue = 0 * itemWidth + labelWidth / 2;
+    [self.scrollView setContentOffset:CGPointMake(xValue, 0.0f) animated:NO];    
+}
+
+
+
+- (void) setValue:(NSInteger) value {
+    CGFloat itemWidth = distanceBetweenLabels;
+    CGFloat xValue = value * itemWidth + labelWidth / 2;
+    [self.scrollView setContentOffset:CGPointMake(xValue, 0.0f) animated:NO];    
 }
 
 - (UIColor *)borderColor {
@@ -280,18 +300,13 @@ const float POINTER_HEIGHT = 7.0f;
         [self.pointerLayer setNeedsDisplay];
         
         self.scrollView.layer.borderColor = borderColor.CGColor;
+//        self.scrollView.layer.borderColor = [UIColor blackColor].CGColor;
     }
 }
 
 - (void)setFontSize:(CGFloat)newFontSize {
     fontSize = newFontSize;
     [self setupMarkers];
-}
-
-- (void)setupValue:(CGFloat)newValue {    
-    CGFloat itemWidth = distanceBetweenLabels;
-    CGFloat xValue = newValue * itemWidth + labelWidth / 2;
-    [self.scrollView setContentOffset:CGPointMake(xValue, 0.0f) animated:NO];
 }
 
 
